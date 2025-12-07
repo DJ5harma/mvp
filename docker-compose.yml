@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: loan_marketplace_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: loan_marketplace
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - loan_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: loan_marketplace_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - loan_network
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  loan_network:
+    driver: bridge
+

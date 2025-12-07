@@ -1,36 +1,159 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Loan Marketplace MVP
 
-## Getting Started
+A comprehensive loan marketplace platform that connects borrowers with lenders through an AI-powered chatbot interface.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Chatbot Interface**: Interactive loan application process through conversational AI
+- **Loan Matching**: AI-powered lender matching based on credit score and eligibility
+- **KYC Collection**: Automated document upload and extraction using Gemini API
+- **Credit Scoring**: 100-point scoring system based on income, EMI burden, savings, and credit history
+- **Lender Portal**: Registration, authentication, and dashboard for lenders
+- **Document Extraction**: OCR-powered extraction of key information from KYC documents
+- **Report Generation**: Comprehensive loan eligibility reports sent to lenders
+
+## Tech Stack
+
+- **Frontend**: Next.js 16, React 19, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: MongoDB
+- **Cache/Sessions**: Redis
+- **AI/OCR**: Google Gemini API
+- **Authentication**: JWT tokens
+- **Containerization**: Docker Compose
+
+## Prerequisites
+
+- Node.js 18+ 
+- Docker and Docker Compose
+- Google Gemini API key
+
+## Setup Instructions
+
+1. **Clone the repository** (if applicable) or navigate to the project directory
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   Edit `.env.local` and add your:
+   - MongoDB URI (default: `mongodb://localhost:27017`)
+   - Redis URL (default: `redis://localhost:6379`)
+   - Gemini API key (get from [Google AI Studio](https://makersuite.google.com/app/apikey))
+   - JWT secret (use a strong random string)
+
+4. **Start MongoDB and Redis with Docker Compose**:
+   ```bash
+   docker-compose up -d
+   ```
+
+5. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+
+6. **Open your browser**:
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## Project Structure
+
+```
+├── app/
+│   ├── api/              # API routes
+│   │   ├── chat/         # Chatbot API
+│   │   ├── upload/       # Document upload
+│   │   ├── process-kyc/  # KYC processing
+│   │   └── lenders/      # Lender APIs
+│   ├── chat/             # Chatbot page
+│   ├── lender/           # Lender portal pages
+│   └── page.tsx          # Home page
+├── components/           # React components
+├── lib/                  # Utility libraries
+│   ├── db/              # Database connections
+│   ├── gemini.ts        # Gemini API integration
+│   ├── scoring.ts       # User scoring algorithm
+│   └── matching.ts      # Lender matching logic
+├── types/               # TypeScript type definitions
+└── docker-compose.yml   # Docker services configuration
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Usage
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### For Borrowers
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Visit the home page and click "Start Your Loan Journey"
+2. Chat with the bot to:
+   - Provide your name and loan purpose
+   - Select a loan type
+   - Enter phone/PAN for credit check
+   - View matching lenders
+   - Upload KYC documents
+3. Receive loan eligibility report
 
-## Learn More
+### For Lenders
 
-To learn more about Next.js, take a look at the following resources:
+1. Register at `/lender/register`
+2. Login at `/lender/login`
+3. View loan applications in dashboard
+4. Communicate with borrowers through the platform
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Endpoints
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Chat API
+- `POST /api/chat` - Send message to chatbot
+- `GET /api/chat?sessionId=xxx` - Get chat session
 
-## Deploy on Vercel
+### Document Upload
+- `POST /api/upload` - Upload KYC document
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### KYC Processing
+- `POST /api/process-kyc` - Process uploaded documents and generate report
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Lender APIs
+- `POST /api/lenders/register` - Register new lender
+- `POST /api/lenders/login` - Lender login
+- `GET /api/lenders/reports` - Get loan reports (authenticated)
+- `POST /api/lenders/messages` - Send message to borrower
+- `GET /api/lenders/messages` - Get messages (authenticated)
+
+## Scoring Algorithm
+
+The user scoring system (0-100 points) evaluates:
+- **Income Stability** (0-25): Based on monthly income level
+- **EMI Burden** (0-25): Lower EMI ratio = higher score
+- **Savings Ratio** (0-20): Monthly savings as percentage of income
+- **Credit Score** (0-20): Normalized from 300-900 scale
+- **Document Accuracy** (0-10): Completeness of submitted documents
+
+## Development
+
+### Running Tests
+```bash
+npm run lint
+```
+
+### Building for Production
+```bash
+npm run build
+npm start
+```
+
+## Environment Variables
+
+See `.env.local.example` for all required environment variables.
+
+## Notes
+
+- Credit scores are currently mocked for development
+- File uploads are stored locally (use cloud storage in production)
+- JWT tokens are stored in localStorage (use httpOnly cookies in production)
+- MongoDB and Redis run in Docker containers
+
+## License
+
+MIT
