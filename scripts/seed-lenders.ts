@@ -8,7 +8,7 @@ async function seedLenders() {
     const lendersCollection = db.collection('lenders');
 
     // Check if lenders already exist
-    const existingLender = await lendersCollection.findOne({ email: 'demo@hdfc.com' });
+    const existingLender = await lendersCollection.findOne({ email: 'demo@tata.com' });
     if (existingLender) {
       console.log('Lenders already seeded. Skipping...');
       return;
@@ -16,11 +16,11 @@ async function seedLenders() {
 
     const lenders = [
       {
-        name: 'HDFC Bank',
-        email: 'demo@hdfc.com',
+        name: 'Tata Capital Bank',
+        email: 'demo@tata.com',
         password: await bcrypt.hash('demo123', 10),
-        companyName: 'HDFC Bank Limited',
-        registrationNumber: 'HDFC001',
+        companyName: 'Tata Capital Bank Limited',
+        registrationNumber: 'TATA001',
         loanTypes: ['Personal', 'Home', 'Vehicle', 'Business'],
         isActive: true,
         createdAt: new Date(),
@@ -49,7 +49,7 @@ async function seedLenders() {
 
     await lendersCollection.insertMany(lenders);
     console.log('✅ Successfully seeded 3 lenders:');
-    console.log('  1. HDFC Bank - demo@hdfc.com / demo123');
+    console.log('  1. Tata Capital Bank - demo@tata.com / demo123');
     console.log('  2. ICICI Bank - demo@icici.com / demo123');
     console.log('  3. Axis Bank - demo@axis.com / demo123');
   } catch (error) {

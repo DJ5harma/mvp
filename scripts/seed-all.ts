@@ -23,11 +23,11 @@ async function seedAll() {
 		const lendersCollection = db.collection("lenders");
 		const lenders = [
 			{
-				name: "HDFC Bank",
-				email: "demo@hdfc.com",
+				name: "Tata Capital Bank",
+				email: "demo@tata.com",
 				password: await bcrypt.hash("demo123", 10),
-				companyName: "HDFC Bank Limited",
-				registrationNumber: "HDFC001",
+				companyName: "Tata Capital Bank Limited",
+				registrationNumber: "TATA001",
 				loanTypes: ["Personal", "Home", "Vehicle", "Business"],
 				isActive: true,
 				createdAt: new Date(),
@@ -221,7 +221,7 @@ async function seedAll() {
 					savings: 200000,
 					emiObligations: {
 						totalEMI: 20000,
-						loans: [{ lender: "HDFC", amount: 20000, remainingTenure: 36 }],
+						loans: [{ lender: "Tata Capital Bank", amount: 20000, remainingTenure: 36 }],
 					},
 				} as ExtractedData,
 				uploadedAt: new Date(),
@@ -336,7 +336,7 @@ async function seedAll() {
 					savings: 300000,
 					emiObligations: {
 						totalEMI: 10000,
-						loans: [{ lender: "HDFC", amount: 10000, remainingTenure: 12 }],
+						loans: [{ lender: "Tata Capital Bank", amount: 10000, remainingTenure: 12 }],
 					},
 				} as ExtractedData,
 				uploadedAt: new Date(),
@@ -612,12 +612,12 @@ async function seedAll() {
 		console.log(`   - ${reports.length} Loan Reports`);
 		console.log(`   - ${applications.length} Applications\n`);
 		console.log("🔑 Lender Login Credentials:");
-		console.log("   HDFC Bank: demo@hdfc.com / demo123");
+		console.log("   Tata Capital Bank: demo@tata.com / demo123");
 		console.log("   ICICI Bank: demo@icici.com / demo123");
 		console.log("   Axis Bank: demo@axis.com / demo123\n");
 		console.log("👤 Test User Data:");
-		console.log("   User 1 (Rajesh): Approved application with HDFC");
-		console.log("   User 2 (Priya): Pending application with HDFC");
+		console.log("   User 1 (Rajesh): Approved application with Tata Capital Bank");
+		console.log("   User 2 (Priya): Pending application with Tata Capital Bank");
 		console.log("   User 3 (Amit): Rejected application with ICICI");
 		console.log("   User 4 (Sneha): Pending application with Axis\n");
 	} catch (error) {

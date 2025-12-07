@@ -106,9 +106,19 @@ export async function POST(request: NextRequest) {
         let loanAmount: number | undefined;
         
         if (amountResult.extracted) {
-          // Parse the amount string to number
-          const amountStr = amountResult.extracted.replace(/[₹,\s]/g, '');
-          loanAmount = parseInt(amountStr, 10);
+          // Handle both string and number types from AI provider
+          let amountStr: string;
+          if (typeof amountResult.extracted === 'number') {
+            loanAmount = amountResult.extracted;
+          } else if (typeof amountResult.extracted === 'string') {
+            // Parse the amount string to number
+            amountStr = amountResult.extracted.replace(/[₹,\s]/g, '');
+            loanAmount = parseInt(amountStr, 10);
+          } else {
+            // Convert to string and try to parse
+            amountStr = String(amountResult.extracted).replace(/[₹,\s]/g, '');
+            loanAmount = parseInt(amountStr, 10);
+          }
           
           if (isNaN(loanAmount) || loanAmount <= 0) {
             response = "Please provide a valid loan amount. For example: 5 lakh, 10 lakhs, ₹5,00,000, or 500000.";
@@ -297,6 +307,7 @@ export async function POST(request: NextRequest) {
             passbook: 'Passbook',
             signature: 'Signature Photo',
             biometric: 'Biometric Photo',
+            salary_slip: 'Salary Slip',
           };
           
           response = `✅ **Lender Selected!**\n\nGreat choice! You've selected **${selectedLender.lenderName}**.\n\nNow let's collect your KYC documents to complete your loan application.\n\nPlease upload your **${docNames[requiredDocs[0]]}** first.`;

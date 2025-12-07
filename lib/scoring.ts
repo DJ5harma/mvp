@@ -123,3 +123,22 @@ export function mockCreditScore(phone?: string, pan?: string): number {
   return 600; // Default score
 }
 
+/**
+ * Calculate EMI (Equated Monthly Installment) using the formula:
+ * EMI = [P × R × (1+R)^N] / [(1+R)^N - 1]
+ * Where:
+ * P = Principal loan amount
+ * R = Monthly interest rate (annual rate / 12 / 100)
+ * N = Loan tenure in months
+ */
+export function calculateEMI(principal: number, annualInterestRate: number, tenureMonths: number): number {
+  if (principal <= 0 || tenureMonths <= 0) return 0;
+  if (annualInterestRate <= 0) return principal / tenureMonths; // No interest, simple division
+  
+  const monthlyRate = annualInterestRate / 12 / 100;
+  const emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) / 
+              (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+  
+  return Math.round(emi);
+}
+

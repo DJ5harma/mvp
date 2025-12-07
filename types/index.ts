@@ -45,7 +45,7 @@ export interface LoanOffer {
 export interface KYCDocument {
   _id?: string;
   userId: string;
-  type: 'aadhar' | 'pan' | 'bank_statement' | 'income_proof' | 'cancelled_cheque' | 'passbook' | 'signature' | 'biometric';
+  type: 'aadhar' | 'pan' | 'bank_statement' | 'income_proof' | 'cancelled_cheque' | 'passbook' | 'signature' | 'biometric' | 'salary_slip';
   fileUrl: string;
   extractedData?: ExtractedData;
   uploadedAt?: Date;
@@ -168,5 +168,22 @@ export interface LenderMessage {
   }>;
   isSanctionLetter?: boolean;
   createdAt: Date;
+}
+
+export interface Application {
+  _id?: string;
+  reportId?: string;
+  userId: string;
+  lenderId: string;
+  status: 'pending' | 'approved' | 'rejected';
+  userScore: number;
+  creditScore: number;
+  creditGrade: string;
+  loanType?: string;
+  loanAmount?: number;
+  preApprovedLimit?: number;
+  lenderMessage?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 

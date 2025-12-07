@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getChatSession } from '@/lib/db/redis';
 import { getDatabase } from '@/lib/db/mongodb';
-import { calculateUserScore } from '@/lib/scoring';
-import { ChatSession, LoanReport, User, ExtractedData } from '@/types';
+import { calculateUserScore, calculateEMI } from '@/lib/scoring';
+import { ChatSession, LoanReport, User, ExtractedData, LoanOffer } from '@/types';
 import { ObjectId } from 'mongodb';
 import { toObjectId } from '@/lib/db/utils';
 
@@ -81,12 +81,24 @@ export async function POST(request: NextRequest) {
     const panDoc = documents.find(d => d.type === 'pan');
     const bankDoc = documents.find(d => d.type === 'bank_statement');
     const incomeDoc = documents.find(d => d.type === 'income_proof');
+    const salarySlipDoc = documents.find(d => d.type === 'salary_slip');
 
     // Convert IDs to ObjectIds for storage
     const lenderIdObj = toObjectId(session.context.selectedLender as string);
     if (!lenderIdObj) {
       return NextResponse.json({ error: 'Invalid lenderId' }, { status: 400 });
     }
+
+    // Get loan amount and selected offer from session
+    const loanAmount = (session.context.loanAmount as number) || 0;
+    const selectedOffer = session.context.selectedOffer as LoanOffer | undefined;
+
+    // Calculate pre-approved limit (using maxLoanAmount from eligibility)
+    const preApprovedLimit = userScore.totalScore >= 80 ? 5000000 : userScore.totalScore >= 60 ? 3000000 : 1000000;
+    
+    // Get monthly income from documents
+    const monthlyIncome = incomeDoc?.extractedData?.incomeSummary?.monthlyIncome || 
+                         salarySlipDoc?.extractedData?.incomeSummary?.monthlyIncome || 0;
 
     const report: LoanReport = {
       userId: session.userId,
@@ -106,17 +118,17 @@ export async function POST(request: NextRequest) {
       creditScore: user.creditScore || 600,
       creditGrade: user.creditGrade || 'C',
       financialStability: {
-        monthlyIncome: incomeDoc?.extractedData?.incomeSummary?.monthlyIncome || 0,
+        monthlyIncome: monthlyIncome,
         monthlyExpenses: bankDoc?.extractedData?.expenseSummary?.monthlyExpenses || 0,
         savings: bankDoc?.extractedData?.savings || 0,
         emiObligations: bankDoc?.extractedData?.emiObligations?.totalEMI || 0,
-        disposableIncome: (incomeDoc?.extractedData?.incomeSummary?.monthlyIncome || 0) -
+        disposableIncome: monthlyIncome -
           (bankDoc?.extractedData?.expenseSummary?.monthlyExpenses || 0) -
           (bankDoc?.extractedData?.emiObligations?.totalEMI || 0),
       },
       loanEligibility: {
         eligible: userScore.totalScore >= 50,
-        maxLoanAmount: userScore.totalScore >= 80 ? 5000000 : userScore.totalScore >= 60 ? 3000000 : 1000000,
+        maxLoanAmount: preApprovedLimit,
         recommendedTenure: userScore.totalScore >= 80 ? 60 : userScore.totalScore >= 60 ? 48 : 36,
         riskLevel: userScore.totalScore >= 70 ? 'low' : userScore.totalScore >= 50 ? 'medium' : 'high',
       },
@@ -133,20 +145,81 @@ export async function POST(request: NextRequest) {
     };
     const reportResult = await reportsCollection.insertOne(reportToSave);
 
+    // Implement automatic approval logic
+    let applicationStatus: 'pending' | 'approved' | 'rejected' = 'pending';
+    let lenderMessage = '';
+
+    const creditScore = user.creditScore || 600;
+
+    // Rule 1: Reject if credit score < 700 OR loan amount > 2× pre-approved limit
+    if (creditScore < 700 || loanAmount > 2 * preApprovedLimit) {
+      applicationStatus = 'rejected';
+      if (creditScore < 700) {
+        lenderMessage = `Application rejected: Credit score (${creditScore}) is below the minimum required threshold of 700.`;
+      } else {
+        lenderMessage = `Application rejected: Loan amount (₹${loanAmount.toLocaleString('en-IN')}) exceeds 2× the pre-approved limit (₹${preApprovedLimit.toLocaleString('en-IN')}).`;
+      }
+    }
+    // Rule 2: If loan amount ≤ pre-approved limit, approve instantly
+    else if (loanAmount <= preApprovedLimit) {
+      applicationStatus = 'approved';
+      lenderMessage = `Congratulations! Your loan application has been approved instantly. Loan amount (₹${loanAmount.toLocaleString('en-IN')}) is within your pre-approved limit (₹${preApprovedLimit.toLocaleString('en-IN')}).`;
+    }
+    // Rule 3: If loan amount ≤ 2× pre-approved limit, check salary slip and EMI
+    else if (loanAmount <= 2 * preApprovedLimit) {
+      // Check if salary slip is uploaded
+      if (!salarySlipDoc && monthlyIncome === 0) {
+        // Request salary slip upload - keep as pending
+        applicationStatus = 'pending';
+        lenderMessage = `Your loan application requires additional verification. Please upload your salary slip to proceed. Loan amount (₹${loanAmount.toLocaleString('en-IN')}) exceeds pre-approved limit but is within 2× limit.`;
+      } else {
+        // Calculate EMI using selected offer or default values
+        const interestRate = selectedOffer?.interestRate || 11.0; // Default 11%
+        const tenureMonths = report.loanEligibility.recommendedTenure;
+        const expectedEMI = calculateEMI(loanAmount, interestRate, tenureMonths);
+        
+        // Check if EMI ≤ 50% of salary
+        if (monthlyIncome > 0 && expectedEMI <= monthlyIncome * 0.5) {
+          applicationStatus = 'approved';
+          lenderMessage = `Congratulations! Your loan application has been approved. Expected EMI (₹${expectedEMI.toLocaleString('en-IN')}) is within 50% of your monthly income (₹${monthlyIncome.toLocaleString('en-IN')}).`;
+        } else {
+          applicationStatus = 'rejected';
+          if (monthlyIncome === 0) {
+            lenderMessage = `Application rejected: Unable to verify income. Please upload a valid salary slip.`;
+          } else {
+            lenderMessage = `Application rejected: Expected EMI (₹${expectedEMI.toLocaleString('en-IN')}) exceeds 50% of your monthly income (₹${monthlyIncome.toLocaleString('en-IN')}).`;
+          }
+        }
+      }
+    }
+
     // Also create an application record for the lender to see
     const applicationsCollection = db.collection('applications');
     await applicationsCollection.insertOne({
       reportId: reportResult.insertedId,
       userId: userIdObj, // Store as ObjectId
       lenderId: lenderIdObj, // Store as ObjectId
-      status: 'pending',
+      status: applicationStatus,
       userScore: userScore.totalScore,
-      creditScore: user.creditScore || 600,
+      creditScore: creditScore,
       creditGrade: user.creditGrade || 'C',
       loanType: user.selectedLoanType,
+      loanAmount: loanAmount,
+      preApprovedLimit: preApprovedLimit,
+      lenderMessage: lenderMessage || undefined,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
+    // Generate appropriate message based on approval status
+    let responseMessage = '';
+    if (applicationStatus === 'approved') {
+      responseMessage = lenderMessage || `KYC processing completed! Your loan application has been approved by ${session.context.selectedLenderName || 'the selected lender'}.`;
+    } else if (applicationStatus === 'rejected') {
+      responseMessage = lenderMessage || `KYC processing completed. Unfortunately, your loan application has been rejected by ${session.context.selectedLenderName || 'the selected lender'}.`;
+    } else {
+      responseMessage = lenderMessage || `KYC processing completed! Your loan application has been sent to ${session.context.selectedLenderName || 'the selected lender'} for review.`;
+    }
 
     return NextResponse.json({
       success: true,
@@ -154,7 +227,8 @@ export async function POST(request: NextRequest) {
       userScore,
       lenderId: session.context.selectedLender,
       lenderName: session.context.selectedLenderName || 'Selected Lender',
-      message: `KYC processing completed! Your loan application has been sent to ${session.context.selectedLenderName || 'the selected lender'}.`,
+      applicationStatus,
+      message: responseMessage,
     });
   } catch (error) {
     console.error('Process KYC error:', error);
